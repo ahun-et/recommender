@@ -1,0 +1,13 @@
+{
+    "_id": {
+      "$oid": "6079f2ee68b4537506a8777a"
+    },
+    "source": {
+      "$oid": "6079eec9cf0d58c89f31dc3d"
+    },
+    "destination": {
+      "$oid": "6079ef75cf0d58c89f31dc3f"
+    },
+    "request": "FOLLOW",
+    "status": "ACCEPTED"
+  }

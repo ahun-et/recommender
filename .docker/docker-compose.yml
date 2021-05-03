@@ -1,0 +1,39 @@
+version: '3.7'
+
+networks:
+  ahun_network:
+    driver: ${NETWORKS_DRIVER}
+
+services:
+  mongodb:
+    image: ahun/mongodb
+    container_name: ahun_mongodb
+    build:
+      context: .
+      dockerfile: mongodb/Dockerfile
+      args:
+        MONGO_VERSION: ${MONGO_VERSION}
+    environment:
+      #- MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      #- MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=${MONGO_INITDB_DATABASE}
+      - MONGO_REPLICA_SET_NAME=${MONGO_REPLICA_SET_NAME}
+    volumes:
+      - './mongodb/data:/data/db'
+    ports:
+      - '${MONGO_EXPOSE_PORT}:${MONGO_INTERNAL_PORT}'
+    networks:
+      - ahun_network
+
+  redis:
+    image: ahun/redis
+    container_name: ahun_redis
+    build:
+      context: .
+      dockerfile: redis/Dockerfile
+      args:
+        REDIS_VERSION: ${REDIS_VERSION}
+    ports:
+      - '${REDIS_EXPOSE_PORT}:${REDIS_INTERNAL_PORT}'
+    networks:
+      - ahun_network

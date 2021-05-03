@@ -1,0 +1,29 @@
+[{
+  "_id": {
+    "$oid": "6079eec9cf0d58c89f31dc3d"
+  },
+  "name": "user 1",
+  "interests": [
+    {
+      "$oid": "6079efdecf0d58c89f31dc40"
+    },
+    {
+      "$oid": "6079f01ccf0d58c89f31dc41"
+    }
+  ]
+},{
+  "_id": {
+    "$oid": "6079ef47cf0d58c89f31dc3e"
+  },
+  "name": "user 2"
+},{
+  "_id": {
+    "$oid": "6079ef75cf0d58c89f31dc3f"
+  },
+  "name": "user 3",
+  "interests": [
+    {
+      "$oid": "6079efdecf0d58c89f31dc40"
+    }
+  ]
+}]

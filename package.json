@@ -1,0 +1,24 @@
+{
+  "name": "ahun-recommender",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:watch": "nodemon ./watch.py",
+    "dev:init_recommendation": "nodemon ./initial_recommendation.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Simonbelete/ahun-recommender.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Simonbelete/ahun-recommender/issues"
+  },
+  "homepage": "https://github.com/Simonbelete/ahun-recommender#readme",
+  "dependencies": {
+    "nodemon": "^2.0.7"
+  }
+}

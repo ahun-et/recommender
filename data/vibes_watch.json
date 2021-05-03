@@ -1,0 +1,25 @@
+[
+    {
+        "_id": {
+            "$oid": "607aa5c9c3bfb94421e53a65"
+        },
+        "caption": "Watch vibes 1",
+        "user": {
+            "$oid": "6079eec9cf0d58c89f31dc3d"
+          }
+    },
+    {
+        "_id": {
+            "$oid": "607aa624c3bfb94421e53a66"
+        },
+        "caption": "Watch vibes 2",
+        "user": {
+            "$oid": "6079eec9cf0d58c89f31dc3d"
+        },
+        "activityType": [
+            {
+              "$oid": "6079efdecf0d58c89f31dc40"
+            }
+          ]
+    }
+]
