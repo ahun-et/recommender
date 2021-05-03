@@ -1,0 +1,14 @@
+[
+    {
+        "_id": {
+            "$oid": "6079efdecf0d58c89f31dc40"
+        },
+        "title": "Activity 1"
+    },
+    {
+        "_id": {
+            "$oid": "6079f01ccf0d58c89f31dc41"
+        },
+        "title": "Activity 2"
+    }
+]
