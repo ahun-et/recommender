@@ -1,5 +1,7 @@
 venv/
 initial_recommendation_a.py
+__pycache__/
+logs/*.log
 
 test.py
 tmp/
