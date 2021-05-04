@@ -67,6 +67,52 @@ def watchInsertVibes():
         except Exception as ex:
             logger.exception(ex)
 
+def watchDeleteVibes():
+    """ Watch `vibes` collection deletation """
+    global REDIS_PREFIX, SLEEP_TIME
+
+    mongo = None
+    redis = None
+
+    print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Delete Vibes{bcolors.ENDC}')
+
+    try:
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the MongoDB databse... {bcolors.ENDC}')
+        mongodbUrl = os.getenv('MONGODB_URL')
+        client = MongoClient(mongodbUrl)
+        mongo = client[os.getenv('MONGODB_DATABASE')]
+
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
+        redis = redis.Redis(
+            host = os.getenv('REDIS_HOST'),
+            port = os.getenv('REDIS_PORT')
+        )
+
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to MongoDB{bcolors.ENDC}')
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to Redis Client{bcolors.ENDC}')
+
+    except Exception as ex:
+        print(f'{bcolors.FAIL}ERROR: Failed to connect to Database{bcolors.ENDC}')
+        logger.exception(str(ex))
+        sys.exit(1)
+
+    print('\n\n')
+
+    while True:
+        try:
+            for delete_change in mongo['vibes'].watch(
+                [{'$match': {'operationType': 'delete'}}]
+            ):
+                # Loop throught every user and try removing the vibe id
+                for f in redis.scan_iter(REDIS_PREFIX + '*'):
+                    redis.lrem(f, 0, str(delete_change['documentKey']['_id']))
+
+            # TODO: add snapshot in order to restart from the previous watch 
+        except Exception as ex:
+            # TODO: log the execption
+            print(ex)
+
 
 with concurrent.futures.ProcessPoolExecutor() as executor:
     executor.submit(watchInsertVibes)
+    executor.submit(watchDeleteVibes)
