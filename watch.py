@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import redis
+import pymongo
 import concurrent.futures
 
 from logger import logger
@@ -109,10 +110,131 @@ def watchDeleteVibes():
 
             # TODO: add snapshot in order to restart from the previous watch 
         except Exception as ex:
-            # TODO: log the execption
-            print(ex)
+            logger.exception(str(ex))
 
+def watchInsertUsers():
+    """ Watch `users` collection and build recommendation for user """
+    global REDIS_PREFIX, SLEEP_TIME
+
+    mongo = None
+    redis = None
+
+    print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Insert Users{bcolors.ENDC}')
+
+    try:
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the MongoDB databse... {bcolors.ENDC}')
+        mongodbUrl = os.getenv('MONGODB_URL')
+        client = MongoClient(mongodbUrl)
+        mongo = client[os.getenv('MONGODB_DATABASE')]
+
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
+        redis = redis.Redis(
+            host = os.getenv('REDIS_HOST'),
+            port = os.getenv('REDIS_PORT')
+        )
+
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to MongoDB{bcolors.ENDC}')
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to Redis Client{bcolors.ENDC}')
+
+    except Exception as ex:
+        print(f'{bcolors.FAIL}ERROR: Failed to connect to Database{bcolors.ENDC}')
+        logger.exception(str(ex))
+        sys.exit(1)
+
+    print('\n\n')
+
+    while True:
+        try:
+            for insert_change in mongo['users'].watch(
+                [{'$match': {'operationType': 'insert'}}]
+            ):
+                # User's interests
+                interests = [f for f in insert_change['fullDocument'].get('interests', [])]
+
+                # Get non blocked following
+                following = [f['_id'] for f in mongo['useredges'].find({'source': insert_change['fullDocument']['_id'], 'request': 'FOLLOW'})]
+
+                # Vibes of following users
+                vibes_followed = []
+
+                for f in mongo['vibes'].find({'user': {'$in': following}}).sort('created_at', pymongo.DESCENDING):
+                    vibes_followed.append(f['_id'])
+                    redis.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':following', str(f['_id']))
+
+                # Get vibes that are based on users interests    
+                vibes_interests = []
+
+                for f in mongo['vibes'].find({'_id': {'$nin': vibes_followed}, 'activityType': {'$in': interests}}).sort('created_at', pymongo.DESCENDING):
+                    vibes_interests.append(f['_id'])
+                    # TODO: Remove andy redundent data if found on redis
+                    redis.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':suggested', str(f['_id']))
+
+        except Exception as ex:
+            logger.exception(str(ex))
+
+def watchInsertUseredges():
+    """ Watch `useredges` collection and build recommendation based on that """
+    global REDIS_PREFIX, SLEEP_TIME
+
+    mongo = None
+    redis = None
+
+    print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Insert User edges{bcolors.ENDC}')
+
+    try:
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the MongoDB databse... {bcolors.ENDC}')
+        mongodbUrl = os.getenv('MONGODB_URL')
+        client = MongoClient(mongodbUrl)
+        mongo = client[os.getenv('MONGODB_DATABASE')]
+
+        print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
+        redis = redis.Redis(
+            host = os.getenv('REDIS_HOST'),
+            port = os.getenv('REDIS_PORT')
+        )
+
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to MongoDB{bcolors.ENDC}')
+        print(f'{bcolors.OKGREEN}SUCESS: Successful connected to Redis Client{bcolors.ENDC}')
+
+    except Exception as ex:
+        print(f'{bcolors.FAIL}ERROR: Failed to connect to Database{bcolors.ENDC}')
+        logger.exception(str(ex))
+        sys.exit(1)
+
+    print('\n\n')
+
+    while True:
+        try:
+            for insert_change in db['useredges'].watch(
+                [{'$match': {'operationType': 'insert'}}]
+            ):
+                seen_vibes = [v['_id'] for v in mongo['vibeseens'].find({'userId': insert_change['fullDocument']['source']})]
+                user = mongo['users'].find_one({'_id': insert_change['fullDocument']['source']})
+
+                # Get the followed user vibes
+                for f in mongo['vibes'].find({'_id': {'$nin': seen_vibes}, 'user': insert_change['fullDocument']['destination']}).sort('created_at', pymongo.DESCENDING):
+                    h = False
+                    # In case of the followed user's vibe is already recommended 
+                    # remove the old recommendation and replicate with the new
+                    redis.lrem(REDIS_PREFIX + str(user['_id']) + ':following', 0, str(f['_id']))
+                    redis.lrem(REDIS_PREFIX + str(user['_id']) + ':suggested', 0, str(f['_id']))
+
+                    # If any of the activity type match user's interests recommend as high
+                    if 'interests' in user and f.get('activityType', []) != []:
+                        for a in f['activityType']:
+                            if a in user['interests']:
+                                redis.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
+                                h = True
+                                break
+
+                    if h == False:
+                        redis.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
+
+        except Exception as ex:
+            logger.exception(str(ex))
 
 with concurrent.futures.ProcessPoolExecutor() as executor:
     executor.submit(watchInsertVibes)
     executor.submit(watchDeleteVibes)
+    executor.submit(watchInsertUsers)
+    executor.submit(watchInsertUseredges)
