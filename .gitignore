@@ -2,6 +2,7 @@ venv/
 initial_recommendation_a.py
 __pycache__/
 logs/*.log
+watch_a.py
 
 test.py
 tmp/
