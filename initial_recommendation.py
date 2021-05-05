@@ -41,24 +41,18 @@ for user in users:
     # Get non blocked following
     following = [f['_id'] for f in db.mongo['useredges'].find({'source': user['_id'], 'request': 'FOLLOW'})]
 
-    # Vibes of following users
-    vibes_followed = []
+    vibes = []
 
-    for f in db.mongo['vibes'].find({'_id': {'$nin': seen_vibes}, 'user': {'$in': following}}).sort('created_at', pymongo.DESCENDING):
-        vibes_followed.append(f['_id'])
-        db.r.lrem(REDIS_PREFIX + str(user['_id']) + ':following', 0, str(f['_id']))
-        db.r.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
-
-    # Get vibes that are based on users interests    
-    vibes_interests = []
-
-    for f in db.mongo['vibes'].find({'_id': {'$nin': seen_vibes + vibes_followed}, 'activityType': {'$in': interests}}).sort('created_at', pymongo.DESCENDING):
-        vibes_interests.append(f['_id'])
-        db.r.lrem(REDIS_PREFIX + str(user['_id']) + ':suggested', 0, str(f['_id']))
-        db.r.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
-
-    print(interests)
-    break
+    for f in db.mongo['vibes'].find({
+        '_id': {'$nin': seen_vibes},
+        '$or': [
+            {'user': {'$in': following}},
+            {'activityType': {'$in': interests}}
+        ]
+    }).sort('created_at', pymongo.ASCENDING):
+         db.r.lrem(REDIS_PREFIX + str(user['_id']), 0, str(f['_id']))
+         db.r.lpush(REDIS_PREFIX + str(user['_id']), str(f['_id']))
+    
 """
     End of all precess
 """
