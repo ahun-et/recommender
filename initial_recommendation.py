@@ -46,7 +46,7 @@ for user in users:
 
     for f in db.mongo['vibes'].find({'_id': {'$nin': seen_vibes}, 'user': {'$in': following}}).sort('created_at', pymongo.DESCENDING):
         vibes_followed.append(f['_id'])
-        db.redis.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
+        db.r.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
 
     # Get vibes that are based on users interests    
     vibes_interests = []
@@ -54,7 +54,7 @@ for user in users:
     for f in db.mongo['vibes'].find({'_id': {'$nin': seen_vibes + vibes_followed}, 'activityType': {'$in': interests}}).sort('created_at', pymongo.DESCENDING):
         vibes_interests.append(f['_id'])
         # TODO: Remove andy redundent data if found on redis
-        db.redis.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
+        db.r.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
 
 """
     End of all precess

@@ -23,7 +23,7 @@ def watchInsertVibes():
     global REDIS_PREFIX, SLEEP_TIME
 
     mongo = None
-    redis = None
+    r = None
 
     print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Insert Vibes{bcolors.ENDC}')
 
@@ -34,7 +34,7 @@ def watchInsertVibes():
         mongo = client[os.getenv('MONGODB_DATABASE')]
 
         print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
-        redis = redis.Redis(
+        r = redis.Redis(
             host = os.getenv('REDIS_HOST'),
             port = os.getenv('REDIS_PORT')
         )
@@ -59,11 +59,11 @@ def watchInsertVibes():
                 followers = [ insert_change['fullDocument']['user'] ]
                 # User's followers
                 for f in mongo['useredges'].find({'destination': insert_change['fullDocument']['user']}):
-                    redis.lpush(REDIS_PREFIX + str(f['source']) + ':following', str(insert_change['fullDocument']['_id']))
+                    r.lpush(REDIS_PREFIX + str(f['source']) + ':following', str(insert_change['fullDocument']['_id']))
 
                 # Users that have interest in the vibe
                 for f in mongo['users'].find({'_id': {'$nin': followers}, 'interests': {'$in': insert_change['fullDocument']['activityType']}}):
-                    redis.lpush(REDIS_PREFIX + str(f['_id']) + ':suggested', str(insert_change['fullDocument']['_id']))
+                    r.lpush(REDIS_PREFIX + str(f['_id']) + ':suggested', str(insert_change['fullDocument']['_id']))
 
         except Exception as ex:
             logger.exception(ex)
@@ -73,7 +73,7 @@ def watchDeleteVibes():
     global REDIS_PREFIX, SLEEP_TIME
 
     mongo = None
-    redis = None
+    r = None
 
     print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Delete Vibes{bcolors.ENDC}')
 
@@ -84,7 +84,7 @@ def watchDeleteVibes():
         mongo = client[os.getenv('MONGODB_DATABASE')]
 
         print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
-        redis = redis.Redis(
+        r = redis.Redis(
             host = os.getenv('REDIS_HOST'),
             port = os.getenv('REDIS_PORT')
         )
@@ -105,8 +105,8 @@ def watchDeleteVibes():
                 [{'$match': {'operationType': 'delete'}}]
             ):
                 # Loop throught every user and try removing the vibe id
-                for f in redis.scan_iter(REDIS_PREFIX + '*'):
-                    redis.lrem(f, 0, str(delete_change['documentKey']['_id']))
+                for f in r.scan_iter(REDIS_PREFIX + '*'):
+                    r.lrem(f, 0, str(delete_change['documentKey']['_id']))
 
             # TODO: add snapshot in order to restart from the previous watch 
         except Exception as ex:
@@ -117,7 +117,7 @@ def watchInsertUsers():
     global REDIS_PREFIX, SLEEP_TIME
 
     mongo = None
-    redis = None
+    r = None
 
     print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Insert Users{bcolors.ENDC}')
 
@@ -128,7 +128,7 @@ def watchInsertUsers():
         mongo = client[os.getenv('MONGODB_DATABASE')]
 
         print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
-        redis = redis.Redis(
+        r = redis.Redis(
             host = os.getenv('REDIS_HOST'),
             port = os.getenv('REDIS_PORT')
         )
@@ -159,15 +159,15 @@ def watchInsertUsers():
 
                 for f in mongo['vibes'].find({'user': {'$in': following}}).sort('created_at', pymongo.DESCENDING):
                     vibes_followed.append(f['_id'])
-                    redis.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':following', str(f['_id']))
+                    r.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':following', str(f['_id']))
 
                 # Get vibes that are based on users interests    
                 vibes_interests = []
 
                 for f in mongo['vibes'].find({'_id': {'$nin': vibes_followed}, 'activityType': {'$in': interests}}).sort('created_at', pymongo.DESCENDING):
                     vibes_interests.append(f['_id'])
-                    # TODO: Remove andy redundent data if found on redis
-                    redis.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':suggested', str(f['_id']))
+                    # TODO: Remove andy redundent data if found on r
+                    r.lpush(REDIS_PREFIX + str(insert_change['fullDocument']['_id']) + ':suggested', str(f['_id']))
 
         except Exception as ex:
             logger.exception(str(ex))
@@ -177,7 +177,7 @@ def watchInsertUseredges():
     global REDIS_PREFIX, SLEEP_TIME
 
     mongo = None
-    redis = None
+    r = None
 
     print(f'{bcolors.HEADER}\t\t\t\tPROCESS: Watch Insert User edges{bcolors.ENDC}')
 
@@ -188,7 +188,7 @@ def watchInsertUseredges():
         mongo = client[os.getenv('MONGODB_DATABASE')]
 
         print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
-        redis = redis.Redis(
+        r = redis.Redis(
             host = os.getenv('REDIS_HOST'),
             port = os.getenv('REDIS_PORT')
         )
@@ -205,7 +205,7 @@ def watchInsertUseredges():
 
     while True:
         try:
-            for insert_change in db['useredges'].watch(
+            for insert_change in mongo['useredges'].watch(
                 [{'$match': {'operationType': 'insert'}}]
             ):
                 seen_vibes = [v['_id'] for v in mongo['vibeseens'].find({'userId': insert_change['fullDocument']['source']})]
@@ -216,19 +216,19 @@ def watchInsertUseredges():
                     h = False
                     # In case of the followed user's vibe is already recommended 
                     # remove the old recommendation and replicate with the new
-                    redis.lrem(REDIS_PREFIX + str(user['_id']) + ':following', 0, str(f['_id']))
-                    redis.lrem(REDIS_PREFIX + str(user['_id']) + ':suggested', 0, str(f['_id']))
+                    r.lrem(REDIS_PREFIX + str(user['_id']) + ':following', 0, str(f['_id']))
+                    r.lrem(REDIS_PREFIX + str(user['_id']) + ':suggested', 0, str(f['_id']))
 
                     # If any of the activity type match user's interests recommend as high
                     if 'interests' in user and f.get('activityType', []) != []:
                         for a in f['activityType']:
                             if a in user['interests']:
-                                redis.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
+                                r.lpush(REDIS_PREFIX + str(user['_id']) + ':suggested', str(f['_id']))
                                 h = True
                                 break
 
                     if h == False:
-                        redis.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
+                        r.lpush(REDIS_PREFIX + str(user['_id']) + ':following', str(f['_id']))
 
         except Exception as ex:
             logger.exception(str(ex))

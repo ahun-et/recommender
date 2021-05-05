@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 
 mongo = None
-redis = None
+r = None
 
 def connect():
     """ Connect to postgresql.
@@ -18,7 +18,7 @@ def connect():
         -------
             void
     """
-    global mongo, redis
+    global mongo, r
 
     load_dotenv()  # take environment variables from .env.
 
@@ -29,7 +29,7 @@ def connect():
         mongo = client[os.getenv('MONGODB_DATABASE')]
 
         print(f'{bcolors.OKBLUE}INFO: Connecting to the Redis Client... {bcolors.ENDC}')
-        redis = redis.Redis(
+        r = redis.Redis(
             host = os.getenv('REDIS_HOST'),
             port = os.getenv('REDIS_PORT')
         )
