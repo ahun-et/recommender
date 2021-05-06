@@ -2,6 +2,7 @@ import os
 import db
 import time
 import pymongo
+import bson
 
 from blender import bcolors
 from resource import getrusage, RUSAGE_SELF
@@ -23,7 +24,7 @@ finish = time.perf_counter()
 i = 0
 
 users_collection = db.mongo['users']
-users = users_collection.find({})
+users = users_collection.find({'_id': bson.ObjectId('5e7b7f0960a53500351fc33b')})
 
 for user in users:
     i = i + 1
@@ -50,8 +51,8 @@ for user in users:
             {'activityType': {'$in': interests}}
         ]
     }).sort('created_at', pymongo.ASCENDING):
-         db.r.lrem(REDIS_PREFIX + str(user['_id']), 0, str(f['_id']))
-         db.r.lpush(REDIS_PREFIX + str(user['_id']), str(f['_id']))
+        db.r.lrem(REDIS_PREFIX + str(user['_id']), 0, str(f['_id']))
+        db.r.lpush(REDIS_PREFIX + str(user['_id']), str(f['_id']))
     
 """
     End of all precess
