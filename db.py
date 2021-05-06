@@ -39,5 +39,6 @@ def connect():
 
     except Exception as ex:
         print(f'{bcolors.FAIL}ERROR: Failed to connect to Database{bcolors.ENDC}')
-        logger.exception(str(ex))
+        #logger.exception(str(ex))
+        print(ex)
         sys.exit(1)
